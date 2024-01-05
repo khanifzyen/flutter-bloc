@@ -8,6 +8,8 @@
 >       3. [Bloc](#bloc)
 > 2. [State Management Bloc](#state-management-bloc)
 >    1. [Cubit](#cubit)
+>       1. [Cara Menggunakan Cubit (Cubit+BlocBuilder)](#cara-menggunakan-cubit)
+>       2. [Parsing Cubit ke Halaman Lain (Cubit+BlocProvider)](#parsing-cubit-ke-halaman-lain)
 
 # State Management
 
@@ -183,3 +185,118 @@ Ketika kamu ingin membuat sebuat Cubit, kamu harus mendefinisikan terlebih dahul
 ![Gambar 02 cubit architecture](img/02%20cubit%20architecture.png)
 
 Gambar 2. Cubit architecture
+
+Kali ini kita akan membuat Counter app bawaan yang akan kita ganti menggunakan Cubit. Buat project baru dengan nama project_bloc dengan peritah `flutter create project_bloc`
+
+Pada contoh yang akan kita bahas kali ini, kita hanya menggunakan data sederhana yaitu berupa variabel integer saja. Jangan lupa tambahkan package `flutter_bloc` terlebih dahulu.
+
+Langkah pertama adalah buat file yang extends dengan class `Cubit`, kemudian beri nama file tersebut dengan `counter_cubit.dart`.
+
+file `cubit\counter_cubit.dart`
+
+```dart
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+class CounterCubit extends Cubit<int> {
+  CounterCubit() : super(0);
+  void increment() => emit(state + 1);
+  void decrement() {
+    if (state > 0) {
+      return emit(state - 1);
+    }
+  }
+}
+```
+
+Kode diatas berarti kita membuat class CounterCubit yang merupakan turunan cari class Cubit yang memiliki tipe integer. Artinya adalah state ini bertipe integer, kemudian memanggil contructor dari class Cubit yang meminta parameter `initialState` yaitu nilai 0 (`super(0)`). Selanjutnya ada method `increment()` yang me-return `emit(state + 1)` berarti state baru akan ditimpa dengan state lama ditambah 1 kemudian akan di stream / diberitahukan ke semua widget yang menggunakan `CounterCubit`. Kemudian ada method `decrement()` yang mensyaratkan nantinya state tidak ada nilai minus, sehingga jika belum sampai 0, maka state lama dikurangi 1 kemudian akan di-stream/diberitahukan ke semua widget yang menggunakan `CounterCubit`.
+
+Langkah kedua adalah berkaitan dengan UI, yaitu membuat instance `counterCubit` yang berasal dari class `CounterCubit`, dan membungkus `Text` dengan `BlocBuilder` karena kita ingin hanya bagian `Text` ini saja nanti yang akan di-rebuild. Ubah terlebih dahulu class `MyHomePage` dari `StatefulWidget` menjadi `StatelessWidget`.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'cubit/counter_cubit.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: MyHomePage(title: 'Flutter Demo Home Page'),
+    );
+  }
+}
+
+class MyHomePage extends StatelessWidget {
+  MyHomePage({super.key, required this.title});
+
+  final String title;
+
+  final CounterCubit counterCubit = CounterCubit();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(title),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const Text(
+              'You have pushed the button this many times:',
+            ),
+            BlocBuilder<CounterCubit, int>(
+              bloc: counterCubit,
+              builder: (context, state) {
+                return Text(
+                  '$state',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: counterCubit.increment,
+            tooltip: 'Increment',
+            child: const Icon(Icons.add),
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            onPressed: counterCubit.decrement,
+            tooltip: 'Decrement',
+            child: const Icon(Icons.remove),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+### Parsing Cubit ke Halaman Lain
+
+Ada kalanya kita ingin nilai/state dari counter bisa diakses di halaman lain. Agar ini bisa terjadi maka kita butuh yang namanya Dependency Injection. Di dalam flutter_bloc selain ada BlocBuilder, terdapat juga BlocProvider yang berguna agar state tersebut bisa digunakan di halaman/widget manapun, asal masih dalam subtree widget induk dimana BlocProvider berada.
+
+Kita akan memodifikasi Counter app diatas dengan memindahkan dua button increment dan decrement menjadi custom widget tersendiri. Secara tidak langsung, kita akan mendaftarkan counterCubit ke dalam BlocProvider. Ingat, kita tidak akan memparsing CounterCubit kedalam constructor custom widget
+
+Langkah pertama pisahkan menjadi widget baru:
+
+`widgets/inc_dec_button.dart`
