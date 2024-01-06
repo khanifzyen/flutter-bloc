@@ -10,6 +10,10 @@
 >    1. [Cubit](#cubit)
 >       1. [Cara Menggunakan Cubit (Cubit+BlocBuilder)](#cara-menggunakan-cubit)
 >       2. [Parsing Cubit ke Halaman Lain (Cubit+BlocProvider)](#parsing-cubit-ke-halaman-lain)
+>    2. [BLOC](#bloc)
+>       1. [Cara Menggunakan BLOC](#cara-menggunakan-bloc)
+>       2. [Membuat MultiBlocProvider dan multi event](#membuat-multiblocprovider-dan-multi-event)
+> 3. [Materi Berikutnya: Membuat TodoList dengan Cubit](#materi-berikutnya-membuat-todolist-dengan-cubit)
 
 # State Management
 
@@ -293,10 +297,230 @@ class MyHomePage extends StatelessWidget {
 
 ### Parsing Cubit ke Halaman Lain
 
-Ada kalanya kita ingin nilai/state dari counter bisa diakses di halaman lain. Agar ini bisa terjadi maka kita butuh yang namanya Dependency Injection. Di dalam flutter_bloc selain ada BlocBuilder, terdapat juga BlocProvider yang berguna agar state tersebut bisa digunakan di halaman/widget manapun, asal masih dalam subtree widget induk dimana BlocProvider berada.
+Ada kalanya kita ingin nilai/state dari counter bisa diakses di halaman lain. Agar ini bisa terjadi maka kita butuh yang namanya **Dependency Injection**. Di dalam `flutter_bloc` selain ada `BlocBuilder`, terdapat juga `BlocProvider` yang berguna agar state tersebut bisa digunakan di halaman/widget manapun, asal masih dalam subtree widget induk dimana `BlocProvider` berada.
 
-Kita akan memodifikasi Counter app diatas dengan memindahkan dua button increment dan decrement menjadi custom widget tersendiri. Secara tidak langsung, kita akan mendaftarkan counterCubit ke dalam BlocProvider. Ingat, kita tidak akan memparsing CounterCubit kedalam constructor custom widget
+Kita akan memodifikasi Counter app diatas dengan memindahkan dua button increment dan decrement menjadi custom widget tersendiri. Secara tidak langsung, kita akan mendaftarkan counterCubit ke dalam BlocProvider. Ingat, kita tidak akan memparsing CounterCubit kedalam constructor custom widget.
 
-Langkah pertama pisahkan menjadi widget baru:
+Langkah pertama adalah bungkus widget utama setelah `MaterialApp.home` dengan BlocProvider:
 
-`widgets/inc_dec_button.dart`
+```dart
+...
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      ...
+      home: BlocProvider(
+        create: (context) => CounterCubit(),
+        child: const MyHomePage(title: 'Flutter Demo Home Page'),
+      ),
+    );
+  }
+  ...
+```
+
+Setelah itu pindahkan `counterCubit` ke dalam fungsi `build()`, dengan berisi `BlocProvider.of<CounterCubit>(context)`, kemudian cut isi floatingActionButton dan isi dengan `IncDecButton()`.
+
+```dart
+class MyHomePage extends StatelessWidget {
+  ...
+  Widget build(BuildContext context) {
+    final counterCubit = BlocProvider.of<CounterCubit>(context);
+    return Scaffold(
+      appBar: AppBar(...),
+      body: ...,
+      floatingActionButton: const IncDecButton(), //jangan lupa untuk mengimpor nanti setelah class ini dibuat
+```
+
+Langkah kedua yaitu buat file baru, dengan paste isi dari floatingActionButton ke dalam `widgets/inc_dec_button.dart`. Kode lengkapnya sebagai berikut,
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../cubit/counter_cubit.dart';
+
+class IncDecButton extends StatelessWidget {
+  const IncDecButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final counterCubit = BlocProvider.of<CounterCubit>(context);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        FloatingActionButton(
+          onPressed: counterCubit.increment,
+          tooltip: 'Increment',
+          child: const Icon(Icons.add),
+        ),
+        const SizedBox(height: 10),
+        FloatingActionButton(
+          onPressed: counterCubit.decrement,
+          tooltip: 'Decrement',
+          child: const Icon(Icons.remove),
+        ),
+      ],
+    );
+  }
+}
+```
+
+Simpan dan jalankan ulang. Sekilas tampilan masih sama, tetapi sebenarnya konsep Dependency Injection telah dijalankan dengan baik.
+
+## BLOC
+
+`Bloc` adalah class yang lebih lengkap ditambah dengan adanya class `events` untuk mentrigger perubahan pada `state`, tidak seperti `Cubit` yang menggunakan function.
+
+`Bloc` dan `Cubit` keduanya extends dengan `BlocBase` yang memiliki kesamaan dalam hal public API.
+
+Dibandingkan memanggil sebuah function didalam bloc dan langsung mengeksekusi state baru, Bloc lebih terstruktur dengan menerima `events`, dan merubah `event` tersebut menjadi `state` sebagai output.
+
+### Cara Menggunakan BLOC
+
+Sebenarnya, cara menggunakan `Bloc` mirip dengan membuat sebuah `Cubit`. Perbedaannya terletak pada bagaimana cara kita mengelola `state` menggunakan `event`.
+
+Events merupakan masukkan (input) pada `Bloc`. Events biasanya dieksekusi ketika adanya interaksi pengguna seperti menekan tombol.
+
+![Gambar 03. BLOC architecture](img/03%20bloc%20architecture.png)
+
+Gambar 3. Bloc Architecture
+
+Masih di project yang sama, kita akan membuat Counter app tetapi menggunakan Bloc, yang sebelumnya menggunakan Cubit.
+
+`bloc\counter_bloc.dart`
+
+```dart
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+class CounterIncremented {}
+
+class CounterBloc extends Bloc<CounterIncremented, int> {
+  CounterBloc() : super(0) {
+    on<CounterIncremented>((event, emit) {
+      emit(state + 1);
+    });
+  }
+}
+```
+
+Jika pada `Cubit` hanya menerima satu tipe parameter yaitu `state`, pada `Bloc` menerima dua tipe parameter yaitu yang pertama adalah `Event`, yang kedua adalah `state`. Untuk event sebagai class yang nanti akan ditrigger pada body constructor. Kemudian method `on` yang diikuti parameter `Event` bertindak sebagai event handler, artinya ketika ada event yang cocok, maka yang ada di dalam kurung buka awak akan dieksekusi, dimana ia merima parameter 2 yaitu `event` dan `emit`. Parameter `event` sesuai dengan deklarasi class Event yang masuk pada method `on` tersebut.
+
+Selanjutnya adalah memasukkan `CounterBloc` kedalam `BlocProvider` sehingga bisa diakses ke dalam widget tree. Karena kita ingin `CounterCubit` tetap ada, maka bungkus lagi dengan `BlocProvider` untuk `CounterBloc`.
+
+```dart
+...
+      home: BlocProvider(
+        create: (context) => CounterBloc(),
+        child: BlocProvider(
+          create: (context) => CounterCubit(),
+          child: const MyHomePage(title: 'Flutter Demo Home Page'),
+          ...
+            BlocBuilder<CounterBloc, int>(
+              builder: (context, state) {
+                return Text(
+                  ...
+...
+```
+
+Kemudian ubah juga `inc_dec_button.dart`
+
+```dart
+...
+  Widget build(BuildContext context) {
+    // final counterCubit = BlocProvider.of<CounterCubit>(context);
+    final counterBloc = BlocProvider.of<CounterBloc>(context);
+    ...
+        FloatingActionButton(
+          onPressed: () {
+            counterBloc.add(CounterIncremented());
+          },
+          tooltip: 'Increment',
+          child: const Icon(Icons.add),
+        ),
+        const SizedBox(height: 10),
+        FloatingActionButton(
+          //onPressed: counterCubit.decrement,
+          onPressed: () {},
+          tooltip: 'Decrement',
+          child: const Icon(Icons.remove),
+          ...
+```
+
+Bisa dilihat pada tombol Add, disini ada method `add` yang didapat dari counterBloc, dan diisi dengan nama event. Jadi triggernya adalah event, bukan function seperti pada Cubit.
+
+Simpan dan lakukan ujicoba, seharusnya hasilnya seolah tidak ada yang berubah tapi kita sudah menerapkan konsep bloc, event pada dengan menggunakan counterBloc.
+
+### Membuat MultiBlocProvider dan multi event
+
+Bagaimana jika seumpama kode yang anda buat memiliki puluhan atau ratusan bloc? Tentu nanti nested `BlocProvider` seperti penulisan kode sebelumnya akan semakin dalam. Kita bisa menggunakan `MultiBlocProvider`, seperti berikut:
+
+```dart
+...
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider(create: (_) => CounterBloc()),
+          BlocProvider(create: (_) => CounterCubit()),
+        ],
+        child: const MyHomePage(title: 'Flutter Demo Home Page'),
+...
+```
+
+Karena ada event untuk increment dan decrement, maka sebaiknya kita pisah ke dalam class baru:
+
+`bloc\counter_event.dart`:
+
+```dart
+part of 'counter_bloc.dart';
+
+sealed class CounterEvent {}
+
+final class CounterIncremented extends CounterEvent {}
+
+final class CounterDecremented extends CounterEvent {}
+```
+
+`bloc\counter_bloc.dart`:
+
+```dart
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+part 'counter_event.dart';
+
+class CounterBloc extends Bloc<CounterEvent, int> {
+  CounterBloc() : super(0) {
+    on<CounterIncremented>((event, emit) {
+      emit(state + 1);
+    });
+    on<CounterDecremented>((event, emit) {
+      emit(state - 1);
+    });
+  }
+}
+```
+
+`widgets\inc_dec_button.dart`
+
+```dart
+...
+  Widget build(BuildContext context) {
+  ...
+        FloatingActionButton(
+          onPressed: () {
+            counterBloc.add(CounterIncremented());
+          },
+          tooltip: 'Increment',
+          child: const Icon(Icons.add),
+        ),
+        const SizedBox(height: 10),
+        FloatingActionButton(
+          //onPressed: counterCubit.decrement,
+          onPressed: () {
+            counterBloc.add(CounterDecremented());
+          },
+          tooltip: 'Decrement',
+          child: const Icon(Icons.remove),
+...
+```
+
+Simpan dan jalankan.
+
+# [Materi Berikutnya: Membuat TodoList dengan Cubit](todolist.md)
