@@ -8,6 +8,7 @@
 > 4. [Menambahkan BlocProvider](#menambahkan-blocprovider)
 > 5. [Menambahkan BlocBuilder](#menambahkan-blocbuilder)
 > 6. [Menambahkan onChange dan onError](#menambahkan-onchange-dan-onerror)
+> 7. [Materi Berikutnya Membuat Form Login dengan Bloc](#materi-berikutnya-membuat-login-form-dengan-bloc)
 
 Kali ini kita akan membuat Todo app dengan menggunakan Cubit. Buat project baru dengan nama project_todo dengan perintah `flutter create project_todo`.
 
@@ -274,3 +275,5 @@ Simpan dan jalankan. Coba title dikosongi kemudian klik Add Todo, maka pada debu
 > Tugas !
 >
 > Lengkapi Todo app diatas dengan button Edit dan Hapus yang berfungsi.
+
+# [Materi Berikutnya: Membuat Login Form dengan Bloc](login.md)
