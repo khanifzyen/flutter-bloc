@@ -269,4 +269,8 @@ class TodoCubit extends Cubit<List<Todo>> {
 }
 ```
 
-Simpan dan jalankan. Coba title dikosongi kemudian klik Add Todo, maka pada debug console muncul "Title cannot be empty"
+Simpan dan jalankan. Coba title dikosongi kemudian klik Add Todo, maka pada debug console muncul "Title cannot be empty".
+
+> Tugas !
+>
+> Lengkapi Todo app diatas dengan button Edit dan Hapus yang berfungsi.
