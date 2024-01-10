@@ -7,7 +7,11 @@
 >    1. [Menambah Event](#menambahkan-event)
 >    2. [Menambah State](#menambahkan-state)
 >    3. [Menambah Event Handler](#menambahkan-event-handler)
-> 3. [Mengirim email dan password dan mengirim ke Event AuthLoginRequested](#mengirim-email-dan-password-ke-event-authloginrequested)
+> 3. [Memahami Aliran Data (Fitur Login) dalam bloc](#memahami-aliran-data-fitur-login-dalam-bloc)
+>    1. [Melengkapi state AuthFailure dengan String error dan AuthSuccess dengan String uid](#melengkapi-state-authfailure-dengan-string-error-dan-authsuccess-dengan-string-uid)
+>    2. [Melengkapi body dari event handler AuthLoginRequested](#melengkapi-body-dari-event-handler-authloginrequested)
+>    3. [Menggunakan BlocProvider](#menggunakan-blocprovider)
+>    4. [Memasang event pada tombol Login]
 
 Kali ini kita akan membuat Login Form dengan menggunakan Bloc. Buat project baru dengan nama project_todo dengan perintah `flutter create project_login_bloc`.
 
@@ -186,4 +190,128 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 }
 ```
 
+## Memahami Aliran Data (Fitur Login) dalam Bloc
+
+Perlu dipahami oleh kita bagaimana alur data (form login) dalam bloc.
+
+1. Form Email dan Password diisi oleh user
+2. Klik tombol Login, tombol Login memanggil `onPressed` yang masuk ke dalam event handler `add()`
+3. di dalam `add()` memanggil event `AuthLoginRequested` dengan parameter controller dari email dan password
+4. Kemudian ke event handler `on` yang sesuai dengan event `AuthLoginRequested` dengan menggunakan event.email dan event.password sebagai parameter ambilan dari form yang disubmit
+5. Menjalankan body dari event handler yang sesuai, semisal pengecekan validasi email, password, dan mengubah state menjadi yang sesuai (jika gagal validasi maka emit state yang `AuthFailure` dengan parameter string error, jika sukses maka emit state yang `AuthSuccess` dengan return response dari API misalnya.)
+
+> **Catatan:** Untuk coding real world, sebenarnya urut dari no 1 sampai 5, cuma nanti akan loncat-loncat ke nomor berikutnya sebagian karena belum dibuat kemudian kembali ke nomor sebelumnya. Untuk memudahkan modul ini, maka akan dibuat terbalik, yaitu dari nomor 5 ke nomor 1.
+
+## Melengkapi state AuthFailure dengan String error dan AuthSuccess dengan String uid
+
+`AuthFailure` perlu ditambahkan parameter String untuk memuat eror, dan `AuthSuccess` untuk saat ini sebagai simulasi model, maka kita bisa gunakan String uid dengan penggabungan "email-password" yang nanti akan muncul di halaman homepage / kedua.
+
+`bloc\auth_state.dart`
+
+```dart
+part of 'auth_bloc.dart';
+
+@immutable
+sealed class AuthState {}
+
+final class AuthInitial extends AuthState {}
+
+final class AuthSuccess extends AuthState {
+  final String uid;
+
+  AuthSuccess({required this.uid});
+}
+
+final class AuthFailure extends AuthState {
+  final String error;
+
+  AuthFailure(this.error);
+}
+```
+
 ## Mengirim email dan password ke Event AuthLoginRequested
+
+Untuk email dan password akan diolah di event, maka kita perlu membuat parameter email dan password pada AuthLoginRequested.
+
+`auth_event.dart`
+
+```dart
+part of 'auth_bloc.dart';
+
+@immutable
+sealed class AuthEvent {}
+
+final class AuthLoginRequested extends AuthEvent {
+  final String email;
+  final String password;
+
+  AuthLoginRequested({
+    required this.email,
+    required this.password,
+  });
+}
+```
+
+## Melengkapi body dari event handler AuthLoginRequested
+
+Event handler letaknya di `auth_bloc.dart`, kemudian isi dari body event handler, letaknya adalah `on(AuthLoginRequested){}` pada kurung kurawal di dalamnya, sehingga menjadi seperti berikut
+
+`bloc\auth_bloc.dart`
+
+```dart
+...
+class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  AuthBloc() : super(AuthInitial()) {
+    on<AuthLoginRequested>(
+      (event, emit) async {
+        final email = event.email;
+        final password = event.password;
+
+        //taruh kode untuk format email menggunakan regex
+        if (!RegExp(
+                r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+            .hasMatch(email)) {
+          return emit(AuthFailure('Email tidak valid'));
+        }
+        //taruh kode untuk password minimal 6 dan terdiri dari huruf besar, huruf kecil, angka, dan simbol
+        if (!RegExp(
+                r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$")
+            .hasMatch(password)) {
+          return emit(AuthFailure(
+              'Password minimal 6 huruf, terdiri dari huruf besar, huruf kecil, angka dan simbol'));
+        }
+
+        await Future.delayed(const Duration(seconds: 1), () {
+          return emit(AuthSuccess(uid: '$email-$password'));
+        });
+      },
+    );
+  }
+}
+```
+
+> **Catatan:** mengapa menggunakan async, karena ini disimulasikan mengambil data dari internet
+
+## Menggunakan BlocProvider
+
+Urusan bloc sudah, sekarang adalah menyediakan bloc ke UI. Tentu kita perlu bungkus `MaterialApp` dengan `BlocProvider`. Arahkan cursor ke MaterialApp, tekan Ctrl + . pilih "Wrap with BlocProvider". Jangan lupa tambahkan package `flutter_bloc`
+
+`main.dart`
+
+```dart
+...
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => AuthBloc(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Bloc Login Demo',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        home: const LoginPage(),
+...
+```
+
+## Memasang event pada tombol Login
