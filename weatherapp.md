@@ -9,6 +9,7 @@
 > 5. [Membuat WeatherModel](#membuat-weathermodel)
 > 6. [Membuat Bloc](#membuat-bloc)
 > 7. [Menambahkan BlocProvider dan RepositoryProvider](#menambahkan-blocprovider-dan-repositoryprovider)
+> 8. [Mentrigger event](#mentrigger-event)
 
 ## Perkenalan
 
